@@ -1,5 +1,4 @@
 // ENCRYPTION_KEY Must be 256 bits (32 characters)
-const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const SimpleCrypto = require('simple-crypto-js').default;
 
@@ -25,60 +24,6 @@ exports.errorResponse = function (req, res, errorMessage, code = 500, error) {
     error,
     data: null,
     success: false,
-  });
-};
-
-exports.sendMail = async function (toMail, subject, body, attachedItems, companyName) {
-  const transporter = nodemailer.createTransport({
-
-    host: 'mail.smtp2go.com',
-    port: 8465,
-    secure: true, // upgrade later with STARTTLS
-    auth: {
-      user: process.env.ESIGN_USERNAME,
-      pass: process.env.ESIGN_PASSWORD,
-    },
-  });
-
-
-  let mailOptions;
-  if (attachedItems) {
-    mailOptions = {
-      from: `${companyName} <no-reply@iESign.com>` || '<no-reply@iESign.com>',
-      to: toMail,
-      subject,
-      html: body,
-      attachments: [{
-        filename: 'Document.pdf',
-        path: attachedItems,
-      },
-      ],
-    };
-  } else {
-    mailOptions = {
-      from: `${companyName} <no-reply@iESign.com>` || '<no-reply@iESign.com>',
-      to: toMail,
-      subject,
-      html: body,
-      /* attachments: [{
-        filename: 'logo_white',
-        path: imgPath,
-        cid: 'esing@logo', // same cid value as in the html img src
-      }, {
-        filename: 'bluebg',
-        path: bluebg,
-        cid: 'esing@bluebg', // same cid value as in the html img src
-      }], */
-    };
-  }
-
-
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.log(error);
-      return error;
-    }
-    console.log(`Email sent: ${info.response}`, 'email>', toMail);
   });
 };
 
