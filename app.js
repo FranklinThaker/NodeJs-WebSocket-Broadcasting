@@ -7,6 +7,9 @@ const cluster = require('cluster');
 const bodyParser = require('body-parser');
 const glob = require('glob');
 const cookieParser = require('cookie-parser');
+const uuid = require('uuid');
+// initialize the WebSocket server instance
+const Websocket = require('ws');
 
 const app = express();
 
@@ -61,10 +64,15 @@ initRoutes(app);
 const server = http.Server(app);
 
 // eslint-disable-next-line import/order
-const io = require('socket.io')(server);
 
-io.on('connection', (socket) => {
-  socket.emit('CLIENT_JOINED', socket.client.id);
+const ws = new Websocket.Server({ server });
+
+ws.on('connection', (socket) => {
+  socket.id = uuid.v4();
+  console.log('socket.id', socket.id);
+  // send immediatly a feedback to the incoming connection
+  socket.send('Hi there, I am a WebSocket server');
+  socket.send(socket.id);
 
   socket.on('CLIENT_JOINED', async (data) => {
     console.log('TCL: data', data);
@@ -83,12 +91,12 @@ io.on('connection', (socket) => {
         await SocketModel.findOneAndUpdate({
           emailAddress: data.emailAddress.toLowerCase(),
           userId: data._id,
-          socketId: { $nin: socket.client.id },
+          socketId: { $nin: socket.id },
         }, {
           adminId: null,
           emailAddress: data.emailAddress.toLowerCase(),
           role: data.role,
-          $push: { socketId: socket.client.id },
+          $push: { socketId: socket.id },
           companyId: null,
           userId: data._id,
         });
@@ -100,7 +108,7 @@ io.on('connection', (socket) => {
           companyId: null,
           userId: data._id,
         });
-        newData.socketId.push(socket.client.id);
+        newData.socketId.push(socket.id);
         await newData.save();
       }
     }
@@ -108,8 +116,8 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', async () => {
     try {
-      await SocketModel.findOneAndUpdate({ socketId: { $in: socket.client.id } }, {
-        $pull: { socketId: socket.client.id },
+      await SocketModel.findOneAndUpdate({ socketId: { $in: socket.id } }, {
+        $pull: { socketId: socket.id },
       });
     } catch (error){
       console.log('TCL: error', error);
@@ -122,4 +130,4 @@ server.listen(process.env.APP_PORT, () => {
   console.log(chalk.blue(`Server & Socket listening on port ${process.env.APP_PORT}!`));
 });
 
-module.exports = { io };
+module.exports = { ws };
