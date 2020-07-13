@@ -188,7 +188,7 @@ exports.ListReceiveFrdRequests = async (req, res) => {
       { $unwind: '$toRecipient' },
       { $match: { status: 0, 'toRecipient._id': mongoose.Types.ObjectId(req.user._id) } },
     ]);
-    return successResponse(req, res, { data }, 'List of Received friend requests!');
+    return successResponse(req, res, data, 'List of Received friend requests!');
   } catch (error) {
     return errorResponse(req, res, error.message);
   }
@@ -225,7 +225,7 @@ exports.friends = async (req, res) => {
         },
       },
     ]);
-    return successResponse(req, res, { data }, 'Friends list!');
+    return successResponse(req, res, data, 'Friends list!');
   } catch (error) {
     return errorResponse(req, res, error.message);
   }
