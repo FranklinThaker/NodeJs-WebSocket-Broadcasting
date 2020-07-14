@@ -122,7 +122,7 @@ exports.AcceptFrdRequest = async (req, res) => {
     //   { $or: [{ frdId1: req.user._id }, { frdId2: req.user._id }] },
     //   { $or: [{ frdId1: param.frdId }, { frdId1: param.frdId }] },
     // ],
-    const ifALreadyAccepted = await FrdsModel({ fromSender: param.senderId, toRecipient: req.user._id, status: 1 });
+    const ifALreadyAccepted = await FrdsModel.findOne({ fromSender: param.senderId, toRecipient: req.user._id, status: 1 });
     if (ifALreadyAccepted) return successResponse(req, res, { isAccepted: 1 }, 'Request already accepted!');
     await FrdsModel.findOneAndUpdate({ fromSender: param.senderId, toRecipient: req.user._id }, {
       status: 1,
