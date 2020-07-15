@@ -2,6 +2,9 @@
 const mongoose = require('mongoose');
 const UsersModel = require('../../models/users');
 const FrdsModel = require('../../models/friends');
+const RoomModel = require('../../models/rooms');
+const RoomUsersModel = require('../../models/room_users');
+
 const {
   successResponse, errorResponse, encrypt, generateJWTtoken,
 } = require('../../helpers/helpers');
@@ -226,6 +229,115 @@ exports.friends = async (req, res) => {
       },
     ]);
     return successResponse(req, res, data, 'Friends list!');
+  } catch (error) {
+    return errorResponse(req, res, error.message);
+  }
+};
+
+exports.createRoom = async (req, res) => {
+  try {
+    const param = { ...req.body, ...req.params, ...req.query };
+
+    const newData = new RoomModel({
+      roomName: param.roomName,
+      userId: req.user._id,
+    });
+
+    await newData.save();
+
+    const data = new RoomUsersModel({
+      roomId: newData._id,
+      userId: req.user._id,
+    });
+
+    await data.save();
+
+    return successResponse(req, res, { }, 'Room created successfully!');
+  } catch (error) {
+    return errorResponse(req, res, error.message);
+  }
+};
+
+exports.listRoomByUser = async (req, res) => {
+  try {
+    const data = await RoomModel.find({ userId: req.user._id });
+
+    return successResponse(req, res, data, 'List of rooms created by user!');
+  } catch (error) {
+    return errorResponse(req, res, error.message);
+  }
+};
+
+exports.addUsersToRoom = async (req, res) => {
+  try {
+    const param = { ...req.body, ...req.params, ...req.query };
+
+    const data = await RoomUsersModel.findOne({
+      userId: param.userId,
+      roomId: param.roomId,
+    }).select(ignoredFields);
+
+    if (data) {
+      return errorResponse(req, res, 'User already exist in the channel!', 400);
+    }
+
+    const userData = await UsersModel.findOne({ _id: param.userId }).select(ignoredFields);
+    if (!userData) {
+      return errorResponse(req, res, 'Invalid User Id provided!', 400);
+    }
+
+    const newData = new RoomUsersModel({
+      roomId: param.roomId,
+      userId: param.userId,
+    });
+
+    await newData.save();
+
+    return successResponse(req, res, { }, 'User added to the room successfully!');
+  } catch (error) {
+    return errorResponse(req, res, error.message);
+  }
+};
+
+exports.listOFUsersInTheRoom = async (req, res) => {
+  try {
+    const param = { ...req.body, ...req.params, ...req.query };
+
+    const data = await RoomUsersModel.aggregate([
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'userData',
+        },
+      },
+      { $unwind: '$userData' },
+      { $match: { roomId: mongoose.Types.ObjectId(param.roomId) } },
+    ]);
+
+    return successResponse(req, res, data, 'List of users in the room fetched successfully!');
+  } catch (error) {
+    return errorResponse(req, res, error.message);
+  }
+};
+
+exports.listOfRoomsAvailableToUsers = async (req, res) => {
+  try {
+    const data = await RoomUsersModel.aggregate([
+      {
+        $lookup: {
+          from: 'rooms',
+          localField: 'roomId',
+          foreignField: '_id',
+          as: 'roomData',
+        },
+      },
+      { $unwind: '$roomData' },
+      { $match: { userId: mongoose.Types.ObjectId(req.user._id) } },
+    ]);
+
+    return successResponse(req, res, data, 'List of Rooms fetched successfully!');
   } catch (error) {
     return errorResponse(req, res, error.message);
   }

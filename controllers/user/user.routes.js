@@ -30,4 +30,24 @@ router.get('/friends',
   authentication,
   user.friends);
 
+router.post('/createRoom',
+  authentication,
+  user.createRoom);
+
+router.get('/listRoomByUser',
+  authentication,
+  user.listRoomByUser);
+
+router.post('/addUsersToRoom',
+  authentication,
+  user.addUsersToRoom);
+
+router.get('/listOFUsersInTheRoom',
+  authentication,
+  user.listOFUsersInTheRoom);
+
+router.get('/listOfRoomsAvailableToUsers',
+  authentication,
+  user.listOfRoomsAvailableToUsers);
+
 module.exports = router;
