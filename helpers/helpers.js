@@ -1,6 +1,7 @@
 // ENCRYPTION_KEY Must be 256 bits (32 characters)
 const jwt = require('jsonwebtoken');
 const SimpleCrypto = require('simple-crypto-js').default;
+const nodemailer = require('nodemailer');
 
 // const { uploadDOCXtoS3 } = require('./imageUpload');
 
@@ -50,6 +51,34 @@ exports.decrypt = (text) => {
   const simpleCrypto = new SimpleCrypto(process.env.ENCRYPTION_KEY);
   const chiperText = simpleCrypto.decrypt(text);
   return chiperText;
+};
+
+exports.sendMail = async function (toMail, subject, body) {
+  console.log('process.env.WEBSOCKET_USERNAME', process.env.WEBSOCKET_USERNAME);
+  console.log('process.env.WEBSOCKET_PASSWORD', process.env.WEBSOCKET_PASSWORD);
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.WEBSOCKET_USERNAME,
+      pass: process.env.WEBSOCKET_PASSWORD,
+    },
+  });
+
+  const mailOptions = {
+    from: process.env.WEBSOCKET_USERNAME,
+    to: toMail,
+    subject,
+    html: body,
+  };
+
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.log(error);
+      return error;
+    }
+    console.log(`Email sent: ${info.response}`, 'email>', toMail);
+  });
 };
 
 exports.generateJWTtoken = (object) => jwt.sign(JSON.parse(JSON.stringify(object)), process.env.SECRET, { expiresIn: '1y' });
