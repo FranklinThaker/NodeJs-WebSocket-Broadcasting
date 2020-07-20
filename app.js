@@ -10,6 +10,8 @@ const cookieParser = require('cookie-parser');
 const uuid = require('uuid');
 // initialize the WebSocket server instance
 const Websocket = require('ws');
+const bluebird = require('bluebird');
+const RoomUsersModel = require('./models/room_users');
 
 const app = express();
 
@@ -74,57 +76,61 @@ ws.on('connection', (socket) => {
   socket.send('Hi there, I am a WebSocket server');
   socket.send(socket.id);
 
+
+  socket.on('SEND_MSG_TO_ROOM', async(data) => {
+    const jsonData = JSON.parse(data);
+
+    const roomData = await RoomUsersModel.find({ roomId: jsonData.roomId });
+
+    ws.clients.forEach(async(client) => {
+      const socketData = await SocketModel.findOne({ socketId: client.id });
+      if (socketData) {
+        console.log('client', client.id);
+
+        await bluebird.each(roomData, (room) => {
+          if (client.readyState === Websocket.OPEN && room.userId === socketData.userId) {
+            client.send('Hi there, I am frnklin from testing broadcasting socket');
+          }
+        });
+      }
+    });
+  });
+
   socket.on('CLIENT_JOINED', async (data) => {
-    console.log('TCL: data', data);
+    const jsonData = JSON.parse(data);
+
+    console.log('TCL: data', jsonData);
     const ifUserExist = await UserModel.findOne({
-      _id: data._id,
-      emailAddress: data.emailAddress,
+      emailAddress: jsonData.emailAddress,
     });
 
     if (ifUserExist){
-      const alreadyExistData = await SocketModel.findOne({
+      await SocketModel.findOneAndUpdate({
         emailAddress: data.emailAddress.toLowerCase(),
-        userId: data._id,
+        userId: ifUserExist._id,
+        socketId: socket.id,
+      }, {
+        emailAddress: data.emailAddress.toLowerCase(),
+        role: data.role,
+        socketId: socket.id,
+        userId: ifUserExist._id,
+      }, {
+        upsert: true,
       });
-
-      if (alreadyExistData){
-        await SocketModel.findOneAndUpdate({
-          emailAddress: data.emailAddress.toLowerCase(),
-          userId: data._id,
-          socketId: { $nin: socket.id },
-        }, {
-          adminId: null,
-          emailAddress: data.emailAddress.toLowerCase(),
-          role: data.role,
-          $push: { socketId: socket.id },
-          companyId: null,
-          userId: data._id,
-        });
-      } else {
-        const newData = new SocketModel({
-          adminId: null,
-          emailAddress: data.emailAddress.toLowerCase(),
-          role: data.role,
-          companyId: null,
-          userId: data._id,
-        });
-        newData.socketId.push(socket.id);
-        await newData.save();
-      }
     }
-  });
-
-  socket.on('disconnect', async () => {
-    try {
-      await SocketModel.findOneAndUpdate({ socketId: { $in: socket.id } }, {
-        $pull: { socketId: socket.id },
-      });
-    } catch (error){
-      console.log('TCL: error', error);
-    }
-    console.log(socket.id, 'Got disconnect!');
   });
 });
+
+/* ws.on('close', async () => {
+  try {
+    await SocketModel.findOneAndUpdate({ socketId: { $in: socket.id } }, {
+      $pull: { socketId: socket.id },
+    });
+  } catch (error){
+    console.log('TCL: error', error);
+  }
+  console.log(socket.id, 'Got disconnect!');
+}); */
 
 server.listen(process.env.APP_PORT, () => {
   console.log(chalk.blue(`Server & Socket listening on port ${process.env.APP_PORT}!`));
