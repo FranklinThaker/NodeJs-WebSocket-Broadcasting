@@ -10,6 +10,12 @@ router.post('/signup',
 router.post('/signin',
   user.login);
 
+router.post('/forgotPassword',
+  user.forgotPassword);
+
+router.post('/resetPassword/:token',
+  user.resetPassword);
+
 router.post('/addFriend',
   authentication,
   user.addFriend);

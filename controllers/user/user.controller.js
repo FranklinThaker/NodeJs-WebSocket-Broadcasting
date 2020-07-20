@@ -1,12 +1,13 @@
 
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
 const UsersModel = require('../../models/users');
 const FrdsModel = require('../../models/friends');
 const RoomModel = require('../../models/rooms');
 const RoomUsersModel = require('../../models/room_users');
 
 const {
-  successResponse, errorResponse, encrypt, generateJWTtoken,
+  successResponse, errorResponse, encrypt, generateJWTtoken, sendMail,
 } = require('../../helpers/helpers');
 
 
@@ -61,6 +62,47 @@ exports.login = async (req, res) => {
       return successResponse(req, res, { newUser, encryptedToken }, "You're now logged in!");
     }
     return errorResponse(req, res, 'Incorrect Email Address/Password!', 401);
+  } catch (error) {
+    return errorResponse(req, res, error.message);
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const param = { ...req.body, ...req.params, ...req.query };
+
+    const user = await UsersModel.findOne({ emailAddress: param.emailAddress.toLowerCase() });
+    if (!user) {
+      return errorResponse(req, res, 'Email Address does not exist!', 404);
+    }
+
+    const token = generateJWTtoken(user);
+
+    const url = `${process.env.FRONT_END_URL}/account/resetpassword?token=${encodeURIComponent(token)}`;
+    const html = `<p>${url}</p>`;
+    sendMail(user.emailAddress, 'Reset Password!', html);
+
+    return successResponse(req, res, null, 'Password reset link has been sent successfully!');
+  } catch (error) {
+    return errorResponse(req, res, error.message);
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const param = { ...req.body, ...req.params, ...req.query };
+
+    const decoded = jwt.verify(param.token, process.env.SECRET);
+
+    if (!req.body.password) {
+      return errorResponse(req, res, 'Password field is empty!', 404);
+    }
+
+    await UsersModel.findOneAndUpdate({ emailAddress: decoded.emailAddress.toLowerCase() }, {
+      password: req.body.password,
+    });
+
+    return successResponse(req, res, null, 'Your password has been reset successfully!');
   } catch (error) {
     return errorResponse(req, res, error.message);
   }
