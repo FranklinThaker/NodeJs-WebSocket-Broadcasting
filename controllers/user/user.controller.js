@@ -1,13 +1,12 @@
 
 const mongoose = require('mongoose');
-const jwt = require('jsonwebtoken');
 const UsersModel = require('../../models/users');
 const FrdsModel = require('../../models/friends');
 const RoomModel = require('../../models/rooms');
 const RoomUsersModel = require('../../models/room_users');
 
 const {
-  successResponse, errorResponse, encrypt, generateJWTtoken, sendMail,
+  successResponse, errorResponse, encrypt, generateJWTtoken,
 } = require('../../helpers/helpers');
 
 
