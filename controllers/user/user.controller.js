@@ -6,7 +6,7 @@ const RoomModel = require('../../models/rooms');
 const RoomUsersModel = require('../../models/room_users');
 
 const {
-  successResponse, errorResponse, encrypt, generateJWTtoken,
+  successResponse, errorResponse, encrypt, generateJWTtoken, sendMail,
 } = require('../../helpers/helpers');
 
 
@@ -84,6 +84,8 @@ exports.forgotPassword = async (req, res) => {
     await UsersModel.findOneAndUpdate({ emailAddress: param.emailAddress.toLowerCase() }, {
       password,
     });
+
+    sendMail(param.emailAddress, 'Forgot Passowrd', `Password:${password}`);
 
     return successResponse(req, res, null, 'Password has been sent to email');
   } catch (error) {
