@@ -13,7 +13,8 @@ router.post('/signin',
 router.post('/forgotPassword',
   user.forgotPassword);
 
-router.post('/resetPassword/:token',
+router.post('/resetPassword',
+  authentication,
   user.resetPassword);
 
 router.post('/addFriend',

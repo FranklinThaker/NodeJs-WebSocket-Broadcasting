@@ -69,6 +69,7 @@ exports.login = async (req, res) => {
 
 exports.forgotPassword = async (req, res) => {
   try {
+    const generator = require('generate-password');
     const param = { ...req.body, ...req.params, ...req.query };
 
     const user = await UsersModel.findOne({ emailAddress: param.emailAddress.toLowerCase() });
@@ -76,13 +77,16 @@ exports.forgotPassword = async (req, res) => {
       return errorResponse(req, res, 'Email Address does not exist!', 404);
     }
 
-    const token = generateJWTtoken(user);
+    const password = generator.generate({
+      length: 10,
+      numbers: true,
+    });
 
-    const url = `${process.env.FRONT_END_URL}/account/resetpassword?token=${encodeURIComponent(token)}`;
-    const html = `<p>${url}</p>`;
-    sendMail(user.emailAddress, 'Reset Password!', html);
+    await UsersModel.findOneAndUpdate({ emailAddress: param.emailAddress.toLowerCase() }, {
+      password,
+    });
 
-    return successResponse(req, res, null, 'Password reset link has been sent successfully!');
+    return successResponse(req, res, null, 'Password has been sent to email');
   } catch (error) {
     return errorResponse(req, res, error.message);
   }
@@ -92,14 +96,12 @@ exports.resetPassword = async (req, res) => {
   try {
     const param = { ...req.body, ...req.params, ...req.query };
 
-    const decoded = jwt.verify(param.token, process.env.SECRET);
-
-    if (!req.body.password) {
+    if (!param.password) {
       return errorResponse(req, res, 'Password field is empty!', 404);
     }
 
-    await UsersModel.findOneAndUpdate({ emailAddress: decoded.emailAddress.toLowerCase() }, {
-      password: req.body.password,
+    await UsersModel.findOneAndUpdate({ _id: req.user._id }, {
+      password: param.password,
     });
 
     return successResponse(req, res, null, 'Your password has been reset successfully!');
