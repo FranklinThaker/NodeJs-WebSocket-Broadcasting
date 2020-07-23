@@ -57,4 +57,9 @@ router.get('/listOfRoomsAvailableToUsers',
   authentication,
   user.listOfRoomsAvailableToUsers);
 
+router.get('/getMessagesInRoom',
+  authentication,
+  user.getMessagesInRoom);
+
+
 module.exports = router;

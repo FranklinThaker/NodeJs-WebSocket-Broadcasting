@@ -11,10 +11,11 @@ const uuid = require('uuid');
 // initialize the WebSocket server instance
 const Websocket = require('ws');
 const bluebird = require('bluebird');
+const mongoose = require('mongoose');
 const RoomUsersModel = require('./models/room_users');
+const RoomMessages = require('./models/room_messages');
 
 const app = express();
-
 const SocketModel = require('./models/sockets');
 const UserModel = require('./models/users');
 
@@ -72,52 +73,66 @@ const ws = new Websocket.Server({ server });
 ws.on('connection', (socket) => {
   socket.id = uuid.v4();
   console.log('socket.id', socket.id);
+
   // send immediatly a feedback to the incoming connection
-  socket.send('Hi there, I am a WebSocket server');
   socket.send(socket.id);
 
-
-  socket.on('SEND_MSG_TO_ROOM', async(data) => {
+  socket.on('message', async(data) => {
     const jsonData = JSON.parse(data);
+    console.log('jsonData', jsonData);
 
-    const roomData = await RoomUsersModel.find({ roomId: jsonData.roomId });
-
-    ws.clients.forEach(async(client) => {
-      const socketData = await SocketModel.findOne({ socketId: client.id });
-      if (socketData) {
-        console.log('client', client.id);
-
-        await bluebird.each(roomData, (room) => {
-          if (client.readyState === Websocket.OPEN && room.userId === socketData.userId) {
-            client.send('Hi there, I am frnklin from testing broadcasting socket');
-          }
-        });
-      }
-    });
-  });
-
-  socket.on('CLIENT_JOINED', async (data) => {
-    const jsonData = JSON.parse(data);
-
-    console.log('TCL: data', jsonData);
-    const ifUserExist = await UserModel.findOne({
-      emailAddress: jsonData.emailAddress,
-    });
-
-    if (ifUserExist){
-      await SocketModel.findOneAndUpdate({
-        emailAddress: data.emailAddress.toLowerCase(),
-        userId: ifUserExist._id,
-        socketId: socket.id,
-      }, {
-        emailAddress: data.emailAddress.toLowerCase(),
-        role: data.role,
-        socketId: socket.id,
-        userId: ifUserExist._id,
+    if (jsonData.event === 'SEND_MSG_TO_ROOM'){
+      jsonData._id = mongoose.Types.ObjectId();
+      await RoomMessages.findOneAndUpdate({ roomId: jsonData.to }, {
+        roomId: jsonData.to,
+        $push: { messages: jsonData },
       }, {
         upsert: true,
       });
+
+      const roomData = await RoomUsersModel.find({ roomId: jsonData.to });
+      jsonData.event = 'RECEIVE_MSG_IN_ROOM';
+      ws.clients.forEach(async(client) => {
+        const socketData = await SocketModel.findOne({ socketId: client.id });
+        if (socketData) {
+          console.log('client', client.id);
+
+          await bluebird.each(roomData, (room) => {
+            if (client.readyState === Websocket.OPEN && room.userId === socketData.userId) {
+              client.send(JSON.stringify(jsonData));
+            }
+          });
+        }
+      });
+    } else if (jsonData.event === 'CLIENT_JOINED') {
+      const ifUserExist = await UserModel.findOne({
+        emailAddress: jsonData.emailAddress,
+      });
+
+      if (ifUserExist){
+        await SocketModel.findOneAndUpdate({
+          emailAddress: jsonData.emailAddress.toLowerCase(),
+          userId: ifUserExist._id,
+        }, {
+          emailAddress: jsonData.emailAddress.toLowerCase(),
+          socketId: socket.id,
+          userId: ifUserExist._id,
+        }, {
+          upsert: true,
+        });
+      }
     }
+  });
+
+  socket.on('close', async () => {
+    try {
+      await SocketModel.findOneAndUpdate({ socketId: socket.id }, {
+        socketId: '',
+      });
+    } catch (error){
+      console.log('TCL: error', error);
+    }
+    console.log(socket.id, 'Got disconnect!');
   });
 });
 

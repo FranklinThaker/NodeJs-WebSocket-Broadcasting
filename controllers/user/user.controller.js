@@ -4,6 +4,7 @@ const UsersModel = require('../../models/users');
 const FrdsModel = require('../../models/friends');
 const RoomModel = require('../../models/rooms');
 const RoomUsersModel = require('../../models/room_users');
+const RoomMessages = require('../../models/room_messages');
 
 const {
   successResponse, errorResponse, encrypt, generateJWTtoken, sendMail,
@@ -383,6 +384,17 @@ exports.listOfRoomsAvailableToUsers = async (req, res) => {
     ]);
 
     return successResponse(req, res, data, 'List of Rooms fetched successfully!');
+  } catch (error) {
+    return errorResponse(req, res, error.message);
+  }
+};
+
+exports.getMessagesInRoom = async (req, res) => {
+  try {
+    const param = { ...req.body, ...req.params, ...req.query };
+    const data = await RoomMessages.findOne({ roomId: param.roomId });
+
+    return successResponse(req, res, data ? data.messages : {}, 'Messages details of the provided channel');
   } catch (error) {
     return errorResponse(req, res, error.message);
   }
